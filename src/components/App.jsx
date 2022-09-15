@@ -1,8 +1,9 @@
 import { Component } from 'react';
 import s from './App.module.css';
+import Btn from './Btn';
 import ImageGallery from './ImageGallery';
 import Searchbar from './Searchbar';
-const axios = require('axios');
+import getImages from './services';
 
 export class App extends Component {
   state = {
@@ -12,31 +13,49 @@ export class App extends Component {
     totalHits: 0,
   };
 
-  async componentDidUpdate(prevProps, prevState) {
-    await this.getImagesData();
-  }
+  onFormSubmit = async searchQuery => {
+    if (this.state.searchQuery === searchQuery)
+      return console.log('поставь нотификашку что выберите что-то ещё');
 
-  getImagesData = async () => {
-    const { searchQuery, page, images } = this.state;
+    this.getNewImages(searchQuery);
+  };
 
-    const KEY = '29082110-259fa3573f07e09f564e9c4c2';
-    const url = `https://pixabay.com/api/?q=${searchQuery}&page=${page}&key=${KEY}&image_type=photo&orientation=horizontal&per_page=12`;
-    const response = await axios.get(url);
-    this.setState(prevState => ({
-      images: [...prevState.images, ...response.data.hits],
+  handleClick = async e => {
+    const { searchQuery, page } = this.state;
+    const {
+      data: { hits, totalHits },
+    } = await getImages(searchQuery, page + 1);
+
+    this.setState(({ images, page }) => ({
+      images: [...images, ...hits],
+      page: page + 1,
+      totalHits: totalHits,
     }));
   };
 
-  onFormSubmit = searchQuery => {
-    this.setState({ searchQuery });
+  getNewImages = async searchQuery => {
+    const {
+      data: { hits, totalHits },
+    } = await getImages(searchQuery, this.state.page);
+
+    this.setState(_ => ({
+      searchQuery,
+      images: [...hits],
+      page: 1,
+      totalHits: totalHits,
+    }));
   };
 
   render() {
-    console.log(this.state.images);
+    const { images, totalHits } = this.state;
+    console.log(this.state);
     return (
       <div className={s.container}>
         <Searchbar onSubmit={this.onFormSubmit} />
-        <ImageGallery />
+        <ImageGallery data={images} />
+        {images.length > 0 && images.length <= totalHits && (
+          <Btn onClick={this.handleClick} />
+        )}
       </div>
     );
   }
