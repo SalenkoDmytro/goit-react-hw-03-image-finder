@@ -1,17 +1,11 @@
 import { Component } from 'react';
+import Notiflix from 'notiflix';
 import s from './App.module.css';
 import Btn from './Btn';
 import ImageGallery from './ImageGallery';
 import Loader from './Loader';
 import Searchbar from './Searchbar';
 import getImages from './services';
-
-const STATUS = {
-  idle: 'idle',
-  pending: 'pending',
-  rejected: 'loaded',
-  resolved: 'resolved',
-};
 
 export class App extends Component {
   state = {
@@ -20,20 +14,19 @@ export class App extends Component {
     page: 1,
     totalHits: 0,
     isLoading: false,
-    status: 'idle',
     error: null,
   };
 
   onFormSubmit = async searchQuery => {
     if (this.state.searchQuery === searchQuery)
-      return console.log('поставь нотификашку что выберите что-то ещё');
+      return Notiflix.Notify.warning('Please, enter another search parameters');
     this.setState({ isLoading: true });
 
     try {
       const {
         data: { hits, totalHits },
       } = await getImages(searchQuery, 1);
-
+      if (!totalHits) Notiflix.Notify.failure('No results, try again');
       this.setState(_ => ({
         searchQuery,
         images: [...hits],
@@ -43,7 +36,7 @@ export class App extends Component {
       }));
     } catch (error) {
       this.setState({ error: error.message });
-      console.log('Нотификашка про ошибку и рендер ошибки');
+      Notiflix.Notify.failure(`Error - ${error.message}`);
     }
   };
 
@@ -55,6 +48,8 @@ export class App extends Component {
       const {
         data: { hits },
       } = await getImages(searchQuery, page + 1);
+      if (hits.length === 0) Notiflix.Notify.failure('No results, try again');
+
       this.setState(prevState => ({
         images: [...prevState.images, ...hits],
         page: prevState.page + 1,
@@ -62,19 +57,18 @@ export class App extends Component {
       }));
     } catch (error) {
       this.setState({ error: error.message });
-      console.log('Нотификашка про ошибку и рендер ошибки');
+      Notiflix.Notify.failure(`Error - ${error.message}`);
     }
   };
 
   render() {
     const { images, totalHits, isLoading, error } = this.state;
-    console.log(this.state);
     return (
       <div className={s.container}>
-        {error && <h2>Перезагружай страницу, ато сломалось</h2>}
         <Searchbar onSubmit={this.onFormSubmit} />
+        {error && <h2>Ooops, something went wrong. Please, reload page</h2>}
         <ImageGallery data={images} />
-        {images.length > 0 && images.length < totalHits && (
+        {!isLoading && images.length > 0 && images.length < totalHits && (
           <Btn onClick={this.handleClick} />
         )}
         {isLoading && <Loader />}
